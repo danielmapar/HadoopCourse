@@ -5,7 +5,7 @@ set -x
 # CAN EDIT THESE VALUES
 registry="hortonworks"
 name="sandbox-hdp"
-version="3.0.1"
+version="2.6.5"
 proxyName="sandbox-proxy"
 proxyVersion="1.0"
 flavor="hdp"
@@ -31,7 +31,7 @@ elif [ "$flavor" == "hdp" ]; then
  hostname="sandbox-hdp.hortonworks.com"
 fi
 
-version=$(docker images | grep $registry/$name  | awk '{print $2}');
+version=$(docker images | grep hortonworks/$name  | awk '{print $2}');
 
 # Create cda docker network
 docker network create cda 2>/dev/null
@@ -41,14 +41,14 @@ docker run --privileged --name $name -h $hostname --network=cda --network-alias=
 
 echo " Remove existing postgres run files. Please wait"
 sleep 2
-docker exec -t "$name" sh -c "rm -rf /var/run/postgresql/*; systemctl restart postgresql-9.6.service;"
+docker exec -t "$name" sh -c "rm -rf /var/run/postgresql/*; systemctl restart postgresql;"
 
 
 #Deploy the proxy container.
-#sed 's/sandbox-hdp-security/sandbox-hdp/g' assets/generate-proxy-deploy-script.sh > assets/generate-proxy-deploy-script.sh.new
-#mv -f assets/generate-proxy-deploy-script.sh.new assets/generate-proxy-deploy-script.sh
-#chmod +x assets/generate-proxy-deploy-script.sh
-#assets/generate-proxy-deploy-script.sh 2>/dev/null
+sed 's/sandbox-hdp-security/sandbox-hdp/g' assets/generate-proxy-deploy-script.sh > assets/generate-proxy-deploy-script.sh.new
+mv -f assets/generate-proxy-deploy-script.sh.new assets/generate-proxy-deploy-script.sh
+chmod +x assets/generate-proxy-deploy-script.sh
+assets/generate-proxy-deploy-script.sh 2>/dev/null
 
 #check to see if it's windows
 if uname | grep MINGW; then 
