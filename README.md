@@ -575,7 +575,7 @@
         ('Touki Bouki (Journey of the Hyena) (1973)', 1, 1.0)
         ```
 
-* On the next example lets do a movie recommendation script using Spark 2.0 and the MLLib
+* On the next example lets do a movie recommendation script using `Spark 2.0` and the `MLLib`
     * ```python
         from pyspark.sql import SparkSession
         from pyspark.ml.recommendation import ALS
