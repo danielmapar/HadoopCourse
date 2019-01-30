@@ -640,3 +640,33 @@
 
             spark.stop()
         ```
+
+## Using relational data stores with Hadoop
+
+* ![hive](./images/hive.PNG) 
+* ![hive2](./images/hive2.PNG)
+* ![hive3](./images/hive3.PNG)  
+    * It is meant for data analysis (analytics), not to be used for real time transactional db.
+    * OLTP: Online Transaction Process 
+    * Hive is for OLAP (Online Analytical Processing)
+    * Under the hood it is just Mappers and Reducers 
+* ![hive4](./images/hive4.PNG)
+    * Similar syntax as MySQL
+* ![hive-in-action](./images/hive-in-action.PNG)
+    * We can import files from HDFS or our local machine
+    * After that, we can create views just like
+        * ```sql
+            CREATE VIEW IF NOT EXISTS topMovieIDs as 
+            SELECT movieID, count(movieID) as ratingCount
+            FROM ratings
+            GROUP BY movieID
+            ORDER BY ratingCount DESC;
+            ```
+            * This will get stored in HDFS as a "table" 
+        * ```sql
+            SELECT n.title, ratingCount
+            FROM topMovieIDs t JOIN name n ON t.movieID = n.movieID;
+            ```
+        * `DROP VIEW topMovieIDs`
+
+* SQL databases generally work with a `Schema on Write` approach. That means that we establish our table layout before inserting any data into the database. On the other hand, Hive works with a `Schema on Read` layout, where the data is not stored in a `Schema` fashion, but whenever we read it then we convert it to a `Schema`
