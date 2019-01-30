@@ -670,3 +670,25 @@
         * `DROP VIEW topMovieIDs`
 
 * SQL databases generally work with a `Schema on Write` approach. That means that we establish our table layout before inserting any data into the database. On the other hand, Hive works with a `Schema on Read` layout, where the data is not stored in a `Schema` fashion, but whenever we read it then we convert it to a `Schema`
+    * Data is saved without actual structure
+* ![hive-metada](./images/hive-metadata.PNG)
+    * Without using Hive view in Ambari, those would be the steps needed to create the "table".
+
+* ![hive-load](./images/hive-load.PNG)
+
+* ![hive-partitioning](./images/hive-partitioning.PNG)
+
+* ![hive-cli](./images/hive-cli.PNG)
+    * In a nutshell, Hive is this SQL abstraction that makes our HDFS looks like a database. However, it is just a series of metafiles and actual files being crossed together. For this reason, this is NOT suitable for transaction systems (OLTP)
+
+* How to integrate an actual MySQL database to your Hadoop cluster.
+    * We will use Scoop to get MySQL data
+
+* ![sqoop](./images/sqoop.PNG)
+* ![sqoop2](./images/sqoop2.PNG)
+
+* ![sqoop-hive](./images/sqoop-hive.PNG)
+* ![sqoop-incremental](./images/sqoop-incremental.PNG)
+* ![sqoop-mysql](./images/sqoop-mysql.PNG)
+    * Note: Hive actually uses MySQL in order to work
+
