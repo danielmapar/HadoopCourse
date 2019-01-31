@@ -1,4 +1,9 @@
 # Remember to start HBase inside Ambari
+# you also need to ssh into the machine and start the server as root
+# su root
+# /usr/hdp/current/hbase-master/bin/hbase-daemon.sh start rest -p <port> --infoport <infoport> 
+# hbase rest start -p <port> --infoport <infoport>
+# Remember to open port 8000
 from starbase import Connection
 
 c = Connection("127.0.0.1", "8000")

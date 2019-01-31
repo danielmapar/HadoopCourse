@@ -11,6 +11,7 @@
                 * Save/Exit the File
                 * Run bash script: bash `sandbox/proxy/proxy-deploy.sh`
                 * Repeat steps for continued port conflicts
+                * In case it still stuck, run: `netcfg -d --` this will clean up all networking devices, and requires a reboot
     * Verify sandbox was deployed successfully by issuing the command: `docker ps`
         * You should see two containers, one for the `nginx` proxy and another one for the actual tools
             * ![setup](images/setup-hortonworks.PNG)
@@ -740,7 +741,8 @@
             # Remember to start HBase inside Ambari
             # you also need to ssh into the machine and start the server as root
             # su root
-            # /usr/hdp/current/hbase-master/bin/hbase-daemon.sh start rest 8000 --infoport 8001
+            # /usr/hdp/current/hbase-master/bin/hbase-daemon.sh start rest -p <port> --infoport <infoport> 
+            # hbase rest start -p <port> --infoport <infoport>
             # Remember to open port 8000
             from starbase import Connection
 
@@ -777,3 +779,82 @@
 
             ratings.drop()
             ```
+    * Regionserver maintains the inmemory copy of the table updates in memcache. In-memory copy is flushed to the disc periodically. Updates to HBase table is stored in HLog files which stores redo records. In case of region recovery, these logs are applied to the last commited HFile and reconstruct the in-memory image of the table. After reconstructing the in-memory copy is flushed to the disc so that the disc copy is latest.
+    
+    * Integrating Pig with HBase
+        * In the previous example we read an entire file and created a `HBase` table using `REST`. However, if we had a bigger file that would not be possible. 
+        * In order to work with big files, we need to first upload the data to `HDFS`, and then use `Pig` in order to create our `HBase` table.
+        * The first step to work with `Pig` is to create our `HBase` table ahead of time.
+
+        * ![pig-hbase](./images/pig-hbase.PNG)
+            * This way `Pig` will control many Mappers and Reducers in order to create the `HBase` table
+            * Another tool to import data to `HBase` is called `import tsv` (script)
+        
+        * Lets create our table:
+            * `hbase shell`
+            * `list`: All the tables on this HBase instance
+            * `create 'users','userinfo'`: Create a table called `users` with a single COLUMN FAMILY `userinfo`
+            * ` wget http://media.sundog-soft.com/hadoop/hbase.pig`: Download `Pig` script
+            * ```pig-latin
+                users = LOAD '/user/maria_dev/ml-100k/u.user'
+                USING PigStorage('|')
+                AS (userID:int, age:int, gender:chararray, occupation:chararray, zip:int);
+
+                STORE users INTO 'hbase://users'
+                USING org.apache.pig.backend.hadoop.hbase.HBaseStorage (
+                'userinfo:age,userinfo:gender,userinfo:occupation,userinfo:zip');
+                ```
+                * The first columen `userID` is automatically used as the key
+                * `pig hbase.pig`
+                    * Kicking off a Map/Reduce job
+                * `scan 'users'`
+                * ![hbase-scan](./images/hbase-scan.PNG)
+                * `disable 'users'`
+                * `drop 'users'`
+    
+    * Cassandra
+        * Has no Master node. It is engineered for availability (no single point of failure)
+        * ![cassandra](./images/cassandra.PNG) 
+        * ![cap](./images/cap.PNG) 
+            * CAP: Consistency, Availability and Partition Tolerance
+                * https://towardsdatascience.com/cap-theorem-and-distributed-database-management-systems-5c2be977950e
+                * **Consistency**: Every read receives the most recent write or an error
+                * **Availability**: Every request receives a (non-error) response – without the guarantee that it contains the most recent write
+                * **Partition tolerance**: The system continues to operate despite an arbitrary number of messages being dropped (or delayed) by the network between nodes
+                    * A network partition refers to network decomposition into relatively independent subnets for their separate optimization as well as network split due to the failure of network devices. In both cases the partition-tolerant behavior of subnets is expected. This means that even after the network is partitioned into multiple sub-systems, it still works correctly.
+                * ![cap-dbs](./images/cap-dbs.PNG)
+            * ACID
+                * **Atomicity**: An atomic transaction is an indivisible and irreducible series of database operations such that either all occur, or nothing occurs.
+                * **Consistency**: must change affected data only in allowed ways. Any data written to the database must be valid according to all defined rules, including constraints, cascades, triggers, and any combination thereof. 
+                * **Isolation**: determines how transaction integrity is visible to other users and systems. For example, when a user is creating a Purchase Order and has created the header, but not the Purchase Order lines, is the header available for other systems/users (carrying out concurrent operations, such as a report on Purchase Orders) to see? A lower isolation level increases the ability of many users to access the same data at the same time, but increases the number of concurrency effects (such as dirty reads or lost updates) users might encounter. Conversely, a higher isolation level reduces the types of concurrency effects that users may encounter, but requires more system resources and increases the chances that one transaction will block another.
+                * **Durability**: property which guarantees that transactions that have committed will survive permanently.
+        * ![cassandra](./images/cassandra2.PNG)
+            * Ring architecure 
+            * We don't have a master Node keeping track of the other Nodes
+            * "Gossip" protocol 
+                * Every node is communicating with each other every second
+                * Exact same software, exact same function
+                * Making sure has a backup copy
+                * Consistency can be stabilished based on the number of nodes that contains the same copy of the data
+        * ![cassandra](./images/cassandra-arch.PNG)
+        * ![cassandra2](./images/cassandra-arch2.PNG)
+        * ![cassandra2](./images/cassandra-arch3.PNG)
+            * S3 – Non-urgent batch jobs. S3 fits very specific use cases when data locality isn’t critical.
+            * Cassandra – Perfect for streaming data analysis and an overkill for batch jobs.
+            * HDFS – Great fit for batch jobs without compromising on data locality.
+        * ![cassandra-create-table](./images/cassandra-create-table.PNG)
+
+    * MongoDB
+        * Has a single master
+        * It is looking for Consistency and Partition Tolerance
+        * ![mongodb](./images/mongodb.PNG)
+        * ![mongodb-collections](./images/mongodb-collections.PNG)
+        * ![mongodb-replicasets](./images/mongodb-replicasets.PNG)
+            * Elections are made if the PRIMARY is down
+            * A secundary may take over, but it will collect change logs and will apply those back at the PRIMARY whenever it is back up
+        * ![mongodb-problems](./images/mongodb-problems.PNG)
+            * At least 3 servers in order to elect a PRIMARY
+            * You can set an ARBITER node in place of SECONDARY node to tell who should take over in case the PRIMARY fails
+        * ![mongodb-sharding](./images/mongodb-sharding.PNG)
+        * ![sharding-problems](./images/sharding-problems.PNG)
+        * ![mongodb-good-parts](./images/mongodb-good-parts.PNG)
