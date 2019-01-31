@@ -692,3 +692,88 @@
 * ![sqoop-mysql](./images/sqoop-mysql.PNG)
     * Note: Hive actually uses MySQL in order to work
 
+## Using non-relation data store with Hadoop
+
+
+* NoSQL 
+    * Your high-transaction queries are probably pretty simple once de-normalized 
+    * ![nosql-architecture](./images/nosql-architecture.PNG)
+        * Each shard takes care of a subset of keys
+        * For analytical queries we will still use SQL databases, they do a pretty good job at that. However, noSQL will help us scaling for online transactions (to server webapps, etc)
+    * ![sample-architecture](./images/sample-architecture.PNG)
+        * You may have a data source (web apps) feeding the system with data.
+        * We will stream that data using Spark, generate some analysis on it and store that data in HDFS, but also send the processed data to MongoDB or some other NoSQL solution in order to answer questions quickly.
+
+* HBase
+    * Build on top of HDFS  
+    * No query language, but it has an API (for CRUD)
+    * Build on top of Big Table ideas from Google
+    * ![ranges-of-keys](./images/ranges-of-keys.PNG)
+        * Each server will take care of a range of keys (this is not a geographical filter)
+            *  Just like sharding or partitioning 
+        * The sharding (balancing the keys process) is done automatically
+            * It does that by doing Write Ahead Commit logs and other strategies
+            *  HBase will copy those individual rows inside each "Region" in a bigger file inside HDFS.
+        * HMaster will keep track of your data schema, where things are stores, and how is it partitioned.
+            * Mastermind of HBase
+        * Zookeeper will keep track of HMasters so the cluster is always up and running properly even if some Node goes down.
+    * Data Model
+        * Fast access to any given ROW
+        * A ROW is referenced by a unique KEY
+        * Each ROW has some small number of COLUMN FAMILIES 
+            * A COLUMN FAMILY may contain arbitrary COLUMNS
+            * You can have a very large number of COLUMNS in a COLUMN FAMILY
+            * It is like having a list of values inside a ROW
+        * Each CELL can have many VERSIONS with timestamps
+        * Sparse data is A-OK - missing column in a row consumes no storage at all.
+    * ![column-name-example](./images/column-name-example.PNG) 
+    * ![column-name-example](./images/interface-hbase.PNG) 
+    * ![hbase-example](./images/hbase-example.PNG)
+        * For a specific UserID we will have a COLUMN FAMILY (list) of ratings.
+            * `{ movieId: rating }`
+    * ![hbase-rest](./images/hbase-rest.PNG)
+        * Remember that HBase Regions are near to the appropriate Data Nodes they need to communicate to. They are always minimizing network calls.
+            * Region server may be running on the same server as a Data Node. This is data locality 
+    * ![mongo-vs-hbase](./images/mongo-vs-hbase.PNG)
+    * Script inside `HadoopMaterials/HBaseExamples.py`
+        * ```python
+            # Remember to start HBase inside Ambari
+            # you also need to ssh into the machine and start the server as root
+            # su root
+            # /usr/hdp/current/hbase-master/bin/hbase-daemon.sh start rest 8000 --infoport 8001
+            # Remember to open port 8000
+            from starbase import Connection
+
+            c = Connection("127.0.0.1", "8000")
+
+            ratings = c.table('ratings') # Creates a COLUMN FAMILY 
+
+            if (ratings.exists()):
+                print("Dropping existing ratings table\n")
+                ratings.drop()
+
+            ratings.create('rating')
+
+            print("Parsing the ml-100k ratings data...\n")
+            ratingFile = open("./ml-100k/u.data", "r")
+
+            batch = ratings.batch()
+            print(batch)
+
+            for line in ratingFile:
+                (userID, movieID, rating, timestamp) = line.split()
+                batch.update(userID, {'rating': {movieID: rating}})
+
+            ratingFile.close()
+
+            print ("Committing ratings data to HBase via REST service\n")
+            batch.commit(finalize=True)
+
+            print ("Get back ratings for some users...\n")
+            print ("Ratings for user ID 1:\n")
+            print (ratings.fetch("1"))
+            print ("Ratings for user ID 33:\n")
+            print (ratings.fetch("33"))
+
+            ratings.drop()
+            ```
