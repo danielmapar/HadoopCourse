@@ -134,7 +134,7 @@
         * **Data Ingestion**
             * How you get data into your cluster
             * Scoop
-                * A tool that enables anything that communicates using ODBC, JDBC (realtional database) to Hadoop
+                * A tool that enables anything that communicates using ODBC, JDBC (relational database) to Hadoop
                 * A connector between Hadoop and your legacy databases
             * Flume
                 * A way of transporting web logs
@@ -728,6 +728,12 @@
         * Each CELL can have many VERSIONS with timestamps
         * Sparse data is A-OK - missing column in a row consumes no storage at all.
     * ![column-name-example](./images/column-name-example.PNG) 
+    * ![hbase-model](./images/hbase-model.PNG)
+        * Here we have a table that consists of cells organized by row keys and column families. Sometimes, a column family (CF) has a number of column qualifiers to help better organize data within a CF.
+
+        * A cell contains a value and a timestamp. And a column is a collection of cells under a common column qualifier and a common CF.
+
+        * Within a table, data is partitioned by 1-column row key in lexicographical order (is a generalization of the way words are alphabetically ordered based on the alphabetical order of their component letters.), where topically related data is stored close together to maximize performance. The design of the row key is crucial and has to be thoroughly thought through in the algorithm written by the developer to ensure efficient data lookups.
     * ![column-name-example](./images/interface-hbase.PNG) 
     * ![hbase-example](./images/hbase-example.PNG)
         * For a specific UserID we will have a COLUMN FAMILY (list) of ratings.
@@ -779,7 +785,7 @@
 
             ratings.drop()
             ```
-    * Regionserver maintains the inmemory copy of the table updates in memcache. In-memory copy is flushed to the disc periodically. Updates to HBase table is stored in HLog files which stores redo records. In case of region recovery, these logs are applied to the last commited HFile and reconstruct the in-memory image of the table. After reconstructing the in-memory copy is flushed to the disc so that the disc copy is latest.
+    * Region server maintains the inmemory copy of the table updates in memcache. In-memory copy is flushed to the disc periodically. Updates to HBase table is stored in HLog files which stores redo records. In case of region recovery, these logs are applied to the last commited HFile and reconstruct the in-memory image of the table. After reconstructing the in-memory copy is flushed to the disc so that the disc copy is latest.
     
     * Integrating Pig with HBase
         * In the previous example we read an entire file and created a `HBase` table using `REST`. However, if we had a bigger file that would not be possible. 
@@ -815,6 +821,9 @@
     * Cassandra
         * Has no Master node. It is engineered for availability (no single point of failure)
         * ![cassandra](./images/cassandra.PNG) 
+        * ![cassandra-model](./images/cassandra-model.PNG) 
+            * Here we have a column family that consists of columns organized by row keys. A column contains a name/key, a value and a timestamp. In addition to a usual column, Cassandra also has super columns containing two or more subcolumns. Such units are grouped into super column families (although these are rarely used).
+            * In the cluster, data is partitioned by a multi-column primary key that gets a hash value and is sent to the node whose token is numerically bigger than the hash value. Besides that, the data is also written to an additional number of nodes that depends on the replication factor set by Cassandra practitioners. The choice of additional nodes may depend on their physical location in the cluster.
         * ![cap](./images/cap.PNG) 
             * CAP: Consistency, Availability and Partition Tolerance
                 * https://towardsdatascience.com/cap-theorem-and-distributed-database-management-systems-5c2be977950e
@@ -844,6 +853,17 @@
             * HDFS – Great fit for batch jobs without compromising on data locality.
         * ![cassandra-create-table](./images/cassandra-create-table.PNG)
 
+    * **HBase vs. Cassandra (data model comparison)**
+        * The terms are almost the same, but their meanings are different. Starting with a column: Cassandra’s column is more like a cell in HBase. A column family in Cassandra is more like an HBase table. And the column qualifier in HBase reminds of a super column in Cassandra, but the latter contains at least 2 subcolumns, while the former – only one.
+
+        * Besides, Cassandra allows for a primary key to contain multiple columns and HBase, unlike Cassandra, has only 1-column row key and lays the burden of row key design on the developer. Also, Cassandra’s primary key consist of a partition key and clustering columns, where the partition key also can contain multiple columns.
+
+        * Despite these ‘conflicts,’ the meaning of both data models is pretty much the same. They have no joins, which is why they group topically related data together. They both can have no value in a certain cell/column, which takes up no storage space. They both need to have column families specified while schema design and can’t change them afterwards, while allowing for columns’ or column qualifiers’ flexibility at any time. But, most importantly, they both are good for storing big data.
+
+        * More at: https://www.scnsoft.com/blog/cassandra-vs-hbase
+
+        * But the main difference between applying Cassandra and HBase in real projects is this. Cassandra is good for ‘always-on’ web or mobile apps and projects with complex and/or real-time analytics. But if there’s no rush for analysis results (for instance, doing data lake experiments or creating machine learning models), HBase may be a good choice. Especially if you’ve already invested in Hadoop infrastructure and skill set.
+
     * MongoDB
         * Has a single master
         * It is looking for Consistency and Partition Tolerance
@@ -858,3 +878,237 @@
         * ![mongodb-sharding](./images/mongodb-sharding.PNG)
         * ![sharding-problems](./images/sharding-problems.PNG)
         * ![mongodb-good-parts](./images/mongodb-good-parts.PNG)
+
+## Querying your Data Interactively 
+
+* Apache Drill
+    * Can issue queries on MongoDB, or files sitting on HDFS, S3 or Google Cloud Storage / Azure, Hive and HBase
+    * SQL Queries 
+* Apache Phoenix
+    * SQL queries on HBase
+* Presto is similar to Drill
+    * It was made from Facebook
+    * Can talk to Cassandra, and Drill cannot
+    * Drill can talk to MongoDB, but Presto cannot
+
+
+* Apache Drill
+    * SQL for noSQL
+    * Based on Google's Dremel (early 2000s)
+    * It is actual SQL (based on the SQL 2003 standards)
+    * With Hive you need to use HiveSQL, but here we can use real SQL
+    * Has support for ODBC / JDBC drivers 
+    * ![drill](./images/drill.PNG)
+    * You could join data from your MongoDB instance and your hive instance, HBase.. and even some random JSON file sitting somewhere
+    * SQL for you entire ecosystem
+    * `Apache Drill` does not come packed with HDP
+    * Run steps:
+        * `wget http://archieve.apache.org/dist/drill/drill-1.12.0/apache-drill-1.12.tar.gz`
+        * `tar -xvf apache-drill-1.12.tar.gz`
+        * `bin/drillbit.sh start -Ddrill.exec.port=8765`
+        * ![drill-in-action](./images/drill-in-action.PNG)
+        * ![drill-example](./images/drill-example.PNG)
+        * * `bin/drillbit.sh stop`
+    
+* Apache Phoenix
+    * A SQL driver for HBase that supports transactions
+    * Fast, low-latency - OLTP support
+    * Originally developed by Salesforce, the open-sourced
+    * Exposes a JDBC connector for HBase
+    * Supports secondary indices and user-defined functions
+    * Integrates with MapReduce, Spark, Hive, Pig and Flume
+    * ![phoenix](./images/phoenix.PNG)
+        * Phoenix does not support all of SQL, but it is close
+    * ![phoenix-arch](./images/phoenix-arch.PNG)
+    * ![phoenix-arch2](./images/phoenix-arch2.PNG)
+    * Run steps:
+        * `yum install phoenix`
+        *  `cd /usr/hdp/current/phoenix-client`
+        * `python sqlline.py`
+        * `!tables` list all tables in HBase
+        * ![phoenix-create-table](./images/phoenix-create-table.PNG)
+        * `!tables`
+        * `UPSERT INTO US_POPULATION VALUES ('NY', 'New York', 8143197)` create or update row
+        * `SELECT * FROM US_POPULATION;`
+        * `DROP TABLE US_POPULATION;`
+        * `!quit`
+
+* Presto
+    * Distributing queries across different data stores
+    * ![presto](./images/presto.PNG)
+        * Great for OLAP - analytical queries, data warehousing
+    * ![presto2](./images/presto2.PNG)
+    * Run steps:
+        * `wget https://repo1.maven.org/maven2/com/facebook/presto/presto-server/0.216/presto-server-0.216.tar.gz`
+        * `tar -xvf presto-server-0.216.tar.gz`
+        * `cd presto-server-0.216`
+        * `wget http://media.sundog-soft.com/hadoop/presto-hdp-config.tgz`
+        * `tar -xvf presto-hdp-config.tgz`
+            * Inside `etc` we have the config files
+        * `cd bin`
+        * `wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/0.216/presto-cli-0.216-executable.jar`
+        * `mv presto-cli-0.216-executable.jar presto`
+        * `chmod +x presto`
+        * `cd ..`
+        * `bin/launcher start` Access 127.0.0.1:8090
+        * `bin/presto --server 127.0.0.1:8090 --catalog hive` Connecting to Hive
+        * `show tables from default`
+        * `select * from default.ratings limit 10`
+        * `select * from default.ratings where rating = 5 limit 10`
+        * `bin/launcher stop`
+
+## Managing your Cluster
+
+* YARN (Yet Another Resource Negotiator)
+    * ![yarn](./images/yarn.PNG)
+        * MapReduce, Spark and Tez are build on top of YARN
+    * ![yarn-apps](./images/yarn-apps.PNG)
+        * YARN is about splitting the entire computation all over your cluster. On the other hand, HDFS is about splitting the storage between computers.
+        * YARN tries to maintain data locality (run the process in the same place as your block of data)
+    * ![yarn-running](./images/yarn-running.PNG) 
+        * `NodeManager` talks to YARN in order to get more resources. Other nodes will run the Application Process (MapReduce for example)
+        * `YARN` will assign a `NodeManager`, this `NodeManager` will request other `Nodes` in order to process the task. This framework provided by `YARN` also guarantees that the process will be in a machine that contains the data. `YARN` can be used by MapReduce, Taz and Spark.
+        * CPU cycle + data locality
+    * ![yarn-more](./images/yarn-more.PNG) 
+
+* Tez (Yet Another Resource Negotiator)
+    * ![tez](./images/tez.PNG) 
+    * ![tez-example](./images/tez-example.PNG) 
+        * Skipping steps and not going to the HDFS cloud as often makes the magic.
+    * ![tez-compare](./images/tez-compare.PNG) 
+    * ![tez-execution](./images/tez-execution.PNG) 
+        * Compared to pure MapReduce, Tez is 3x faster.
+
+* Mesos 
+    * Yes, yet another resource negotiator
+    * ![mesos](./images/mesos.PNG) 
+        * Distribute tasks to a computer cluster
+        * It is more generic than `YARN`
+        * Developed by Twitter
+        * Not strict to Hadoop tasks 
+            * It could spawn web servers and other resources
+    * ![mesos-more](./images/mesos-more.PNG) 
+        * Spark was developed to run on top of `Mesos`
+    * ![mesos-arc](./images/mesos-arc.PNG) 
+    * ![mesos-others](./images/mesos-others.PNG)
+
+* ZooKeeper 
+    * ![zookeeper](./images/zookeeper.PNG)
+    * ![zookeeper-more](./images/zookeeper-more.PNG)
+    * ![zookeeper-api](./images/zookeeper-api.PNG)
+    * ![zookeeper-notifications](./images/zookeeper-notifications.PNG)
+    * ![zookeeper-persistent](./images/zookeeper-persistent.PNG)
+    * ![zookeeper-persistent2](./images/zookeeper-persistent2.PNG)
+    * ![zookeeper-consistent](./images/zookeeper-consistent.PNG)
+        * Various nodes must agree before sharing information to a service (at least 3). That is the way consistency is kept
+        * Zookeeper has an ephemeral storage by default, that means that if a master client from an application (lets say HBase) goes down, his `znode`/`file` won't show anymore inside Zookeeper.
+            * That way, a client node will be notified about it and then elect him-self to be the master, and Zookeeper will make sure that only one client node will be able to write to the "HBase master" `znode` file.
+    * ![zookeeper-example](./images/zookeeper-example.PNG)
+
+* OOZIE
+
+    * Orchestrating your Hadoop jobs
+    * ![oozie-workflow](./images/oozie-workflow.PNG)
+    * ![oozie-workflow](./images/oozie-workflow2.PNG) 
+        * Works with the idea of nodes (a node will do some task)
+        * fork node, task nodes and join node, etc..
+    * ![oozie-workflow](./images/oozie-workflow3.PNG)
+        * No fancy editor
+    * ![oozie-steps](./images/oozie-steps.PNG) 
+    * ![oozie-running](./images/oozie-running.PNG)
+    * ![oozie-coordinator](./images/oozie-coordinator.PNG) 
+        * Used to kick off a job within a time frame
+        * A bundle is a collection of coordinators 
+            * By grouping them in a bundle, you could suspend them all if there were a problem with log collection
+ 
+* Apache Zeppelin
+
+    * A notebook interface to yout Big Data
+    * Similar to iPython notebook and Jupiter Notebook
+        * Lets you interactively run scripts / code against your data
+        * Can interleave with nicely formatted notes
+        * Can share notebooks with others on your cluster   
+    * ![zeppelin](./images/zeppelin.PNG) 
+    * ![zeppelin-more](./images/zeppelin-more.PNG) 
+    * ![zeppelin-example](./images/zeppelin-example2.PNG)  
+    * ![zeppelin-example](./images/zeppelin-example.PNG)
+        * SparkSQL in action 
+
+* Hue
+    * Clouderas Ambari
+    * ![hue](./images/hue.PNG)
+        * Hortonworks is an 100% open source solution, cloudera injects some products of its own 
+    * ![hue-oozie](./images/hue-oozie.PNG)
+        * Has a nice ozzie editor
+
+* Legacy technologies
+    * Ganglia
+        * Distributed monitoring system
+        * It is dead (2008)
+    * Chukwa
+        * Collecting and analyzing logs
+            * People use Flume or Kafka now a days
+        * It is dead (2010)
+
+## Feeding Data to your Cluster
+
+* What is streaming?
+    * ![streaming-data](./images/streaming-data.PNG)
+
+* Kafka 
+    * Publish/Subscribe Messaging with Kafka
+    * ![kafka](./images/kafka.PNG)
+    * ![kafka2](./images/kafka2.PNG)
+        * Stream processors example: It will watch for a kafka topic, get log data and extract what you really want from it, and republish that to a new topic in Kafka
+    * ![kafka-example](./images/kafka-example.PNG)
+
+* Flume
+    * Another way to stream data into your cluser
+    * Build with Hadoop in mind
+    * Originally made to handle log aggreagation 
+    * ![flume](./images/flume.PNG)
+    * ![flume-more](./images/flume-more.PNG)
+        * An agente may watch for changes on a file log in a web server (source)
+        * Flume will delete the message as soon as it is processed by the channel (kafka wont do that)
+            * The channel will pipe information from the source to the sink (memory or file)
+    * ![flume-source](./images/flume-source.PNG)
+    * ![flume-sink](./images/flume-sink.PNG)
+    * ![flume-hdfs](./images/flume-hdfs.PNG)
+    * ![flume-example](./images/flume-example.PNG)
+
+
+## Analyzing Streams of Data
+
+* "Big data" never stops!
+* Analyze data streams in real time, instead of in huge batch jobs daily
+* Analyzing streams of web log data to react to user behavior 
+* Analyze streams of real-time sensor data for "Internet of Things" stuff
+
+* Spark Stream
+    * ![spark-stream](./images/spark-stream.PNG) 
+        * Will receive that from Kafka and other sources.
+        * `Receivers` will create RDD based on some discretize time frame of data (2s of data for example)
+        * Micro batches 
+    * ![spark-stream2](./images/spark-stream2.PNG) 
+    * ![spark-stream-operations](./images/spark-stream-operations.PNG) 
+    * ![spark-stream-state](./images/spark-stream-state.PNG) 
+    * ![spark-stream-window](./images/spark-stream-window.PNG) 
+    * ![spark-stream-window2](./images/spark-stream-window2.PNG) 
+    * ![spark-stream-ds](./images/spark-stream-ds.PNG)
+    * ![spark-stream-ds2](./images/spark-stream-ds2.PNG)
+    * ![spark-stream-ds3](./images/spark-stream-ds3.PNG)
+
+* Apache Storm
+    * Another framwework for processing continuos streams of data on a cluster 
+        * Can run on top of YARN
+    * Works on individual events, not micro-batches (like Spark Streaming does)
+        * If you need sub-second latency, Storm is for you
+        * More real time, no batch intervals
+    * ![storm](./images/storm.PNG)
+    * ![storm-real-time](./images/storm-real-time.PNG)
+
+* Flink
+    * ![flink](./images/flink.PNG)
+    * ![flink-faster](./images/flink-faster.PNG)
+    * ![flink-arc](./images/flink-arc.PNG)
+        * Can work with stream and batch data
