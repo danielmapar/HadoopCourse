@@ -1112,3 +1112,23 @@
     * ![flink-faster](./images/flink-faster.PNG)
     * ![flink-arc](./images/flink-arc.PNG)
         * Can work with stream and batch data
+
+
+## Designing Real-World Systems
+
+* `Impala` Clouderas alternative to Hive
+
+* `Accumulo` is HBase with better security
+    * Cell-based access control
+
+* `Redis` a distributed in-memory data store (like memcache)
+
+* `Ignite` is an option to `Redis`
+    * Close to a real database (ACID, SQL support, but all in-memory)
+
+* `Elasticsearch` distributed document search and analytics engine
+
+* `Kinesis`
+    * AWS version of Kafka
+    * DynamoDB is like Cassandra
+    * Elastic MapReduce (EMR)
